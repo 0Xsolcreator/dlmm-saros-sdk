@@ -1,4 +1,4 @@
-import { PublicKey } from "@solana/web3.js";
+import { Commitment, ConnectionConfig, PublicKey } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 export declare enum MODE {
     TESTNET = "testnet",
@@ -22,13 +22,19 @@ export declare type LiquidityBookConfig = {
     rewardsDuration: number;
     rewardsPerSecond: number;
 };
-export interface ILiquidityBookConfig {
+export declare type ILiquidityBookConfig = {
     mode: MODE;
-    liquidBookConfig?: LiquidityBookConfig;
     options?: {
-        rpcUrl: string;
+        rpcUrl?: string;
+        commitmentOrConfig?: Commitment | ConnectionConfig;
     };
-}
+} | {
+    mode?: never;
+    options: {
+        rpcUrl: string;
+        commitmentOrConfig?: Commitment | ConnectionConfig;
+    };
+};
 export declare type Bin = {
     reserveX: number;
     reserveY: number;

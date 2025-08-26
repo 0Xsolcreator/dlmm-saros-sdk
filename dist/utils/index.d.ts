@@ -1,10 +1,5 @@
 import { Connection } from "@solana/web3.js";
-import { LiquidityShape, PositionInfo } from "../types/services";
-export interface Distribution {
-    relativeBinId: number;
-    distributionX: number;
-    distributionY: number;
-}
+import { Distribution, LiquidityShape, PositionInfo } from "../types/services";
 interface CreateLiquidityDistributionParams {
     shape: LiquidityShape;
     binRange: [number, number];

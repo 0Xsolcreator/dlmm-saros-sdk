@@ -12,9 +12,11 @@ export abstract class LiquidityBookAbstract {
   hooksProgram!: Program<Idl>;
 
   constructor(config: ILiquidityBookConfig) {
-    // Initialize the services heref
+    const rpcUrl = config.options?.rpcUrl || CONFIG[config.mode!].rpc;
+    
+    // Initialize the services here
     this.connection = new Connection(
-      config.options?.rpcUrl || CONFIG[config.mode].rpc,
+      rpcUrl,
       config.options?.commitmentOrConfig || "confirmed"
     );
 

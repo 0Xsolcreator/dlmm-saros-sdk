@@ -198,19 +198,17 @@ function _regeneratorDefine(e, r, n, t) {
     i = 0;
   }
   _regeneratorDefine = function (e, r, n, t) {
-    if (r) i ? i(e, r, {
+    function o(r, n) {
+      _regeneratorDefine(e, r, function (e) {
+        return this._invoke(r, n, e);
+      });
+    }
+    r ? i ? i(e, r, {
       value: n,
       enumerable: !t,
       configurable: !t,
       writable: !t
-    }) : e[r] = n;else {
-      function o(r, n) {
-        _regeneratorDefine(e, r, function (e) {
-          return this._invoke(r, n, e);
-        });
-      }
-      o("next", 0), o("throw", 1), o("return", 2);
-    }
+    }) : e[r] = n : (o("next", 0), o("throw", 1), o("return", 2));
   }, _regeneratorDefine(e, r, n, t);
 }
 function _regeneratorValues(e) {
@@ -285,6 +283,19 @@ var MODE;
   MODE["DEVNET"] = "devnet";
   MODE["MAINNET"] = "mainnet";
 })(MODE || (MODE = {}));
+
+var LiquidityShape;
+(function (LiquidityShape) {
+  LiquidityShape["Spot"] = "Spot";
+  LiquidityShape["Curve"] = "Curve";
+  LiquidityShape["BidAsk"] = "BidAsk";
+})(LiquidityShape || (LiquidityShape = {}));
+var RemoveLiquidityType;
+(function (RemoveLiquidityType) {
+  RemoveLiquidityType["Both"] = "removeBoth";
+  RemoveLiquidityType["BaseToken"] = "removeBaseToken";
+  RemoveLiquidityType["QuoteToken"] = "removeQuoteToken";
+})(RemoveLiquidityType || (RemoveLiquidityType = {}));
 
 var _CONFIG;
 var CONFIG = (_CONFIG = {}, _CONFIG[MODE.TESTNET] = {
@@ -6423,15 +6434,11 @@ var MdmaIDL = {
 };
 
 var LiquidityBookAbstract = function LiquidityBookAbstract(config) {
-  var _config$options;
-  // Initialize the services heref
-  this.connection = new Connection(((_config$options = config.options) == null ? void 0 : _config$options.rpcUrl) || CONFIG[config.mode].rpc, {
-    commitment: "confirmed",
-    httpHeaders: {
-      development: "coin98"
-    }
-  });
-  var provider = new AnchorProvider(this.connection, window.solana, AnchorProvider.defaultOptions());
+  var _config$options, _config$options2;
+  var rpcUrl = ((_config$options = config.options) == null ? void 0 : _config$options.rpcUrl) || CONFIG[config.mode].rpc;
+  // Initialize the services here
+  this.connection = new Connection(rpcUrl, ((_config$options2 = config.options) == null ? void 0 : _config$options2.commitmentOrConfig) || "confirmed");
+  var provider = new AnchorProvider(this.connection, {}, AnchorProvider.defaultOptions());
   this.lbProgram = new Program(LiquidityBookIDL, provider);
   this.hooksProgram = new Program(MdmaIDL, provider);
 };
@@ -6546,7 +6553,7 @@ var LBSwapService = /*#__PURE__*/function () {
       var _this3 = this;
       var amount, swapForY, pair, isExactInput, pairInfo, currentBinArrayIndex, binArrayIndexes, binArrayAddresses, binArrays, binRange, totalSupply, amountAfterTransferFee, amountOut, amountIn, _t;
       return _regenerator().w(function (_context) {
-        while (1) switch (_context.n) {
+        while (1) switch (_context.p = _context.n) {
           case 0:
             amount = params.amount, swapForY = params.swapForY, pair = params.pair, isExactInput = params.isExactInput;
             _context.p = 1;
@@ -6643,14 +6650,16 @@ var LBSwapService = /*#__PURE__*/function () {
   /*#__PURE__*/
   function () {
     var _calculateAmountIn = /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee2(amount, bins, pairInfo, swapForY) {
-      var amountIn, totalProtocolFee, amountOutLeft, activeId, activeBin, fee, _this$swapExactOutput, amountInWithFees, amountOutOfBin, protocolFeeAmount;
+      var amountIn, totalProtocolFee, amountOutLeft, activeId, totalBinUsed, activeBin, fee, _this$swapExactOutput, amountInWithFees, amountOutOfBin, protocolFeeAmount, _t2;
       return _regenerator().w(function (_context2) {
-        while (1) switch (_context2.n) {
+        while (1) switch (_context2.p = _context2.n) {
           case 0:
+            _context2.p = 0;
             amountIn = BigInt(0);
             totalProtocolFee = BigInt(0);
             amountOutLeft = amount;
             activeId = pairInfo.activeId;
+            totalBinUsed = 0;
             _context2.n = 1;
             return this.updateReferences(pairInfo, activeId);
           case 1:
@@ -6658,6 +6667,7 @@ var LBSwapService = /*#__PURE__*/function () {
               _context2.n = 4;
               break;
             }
+            totalBinUsed++;
             this.updateVolatilityAccumulator(pairInfo, activeId);
             activeBin = bins.getBinMut(activeId);
             if (activeBin) {
@@ -6690,9 +6700,21 @@ var LBSwapService = /*#__PURE__*/function () {
             _context2.n = 1;
             break;
           case 4:
+            if (!(totalBinUsed >= 30)) {
+              _context2.n = 5;
+              break;
+            }
+            throw "Swap crosses too many bins – quote aborted.";
+          case 5:
             return _context2.a(2, amountIn);
+          case 6:
+            _context2.p = 6;
+            _t2 = _context2.v;
+            throw _t2;
+          case 7:
+            return _context2.a(2);
         }
-      }, _callee2, this);
+      }, _callee2, this, [[0, 6]]);
     }));
     function calculateAmountIn(_x2, _x3, _x4, _x5) {
       return _calculateAmountIn.apply(this, arguments);
@@ -6707,15 +6729,16 @@ var LBSwapService = /*#__PURE__*/function () {
   /*#__PURE__*/
   function () {
     var _calculateAmountOut = /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee3(amount, bins, pairInfo, swapForY) {
-      var amountOut, totalProtocolFee, amountInLeft, activeId, activeBin, fee, _this$swapExactInput, amountInWithFees, amountOutOfBin, protocolFeeAmount, _t2;
+      var amountOut, totalProtocolFee, amountInLeft, activeId, totalBinUsed, activeBin, fee, _this$swapExactInput, amountInWithFees, amountOutOfBin, protocolFeeAmount, _t3;
       return _regenerator().w(function (_context3) {
-        while (1) switch (_context3.n) {
+        while (1) switch (_context3.p = _context3.n) {
           case 0:
             _context3.p = 0;
             amountOut = BigInt(0);
             totalProtocolFee = BigInt(0);
             amountInLeft = amount;
             activeId = pairInfo.activeId;
+            totalBinUsed = 0;
             _context3.n = 1;
             return this.updateReferences(pairInfo, activeId);
           case 1:
@@ -6723,6 +6746,7 @@ var LBSwapService = /*#__PURE__*/function () {
               _context3.n = 4;
               break;
             }
+            totalBinUsed++;
             this.updateVolatilityAccumulator(pairInfo, activeId);
             activeBin = bins.getBinMut(activeId);
             if (activeBin) {
@@ -6755,15 +6779,21 @@ var LBSwapService = /*#__PURE__*/function () {
             _context3.n = 1;
             break;
           case 4:
-            return _context3.a(2, amountOut);
+            if (!(totalBinUsed >= 30)) {
+              _context3.n = 5;
+              break;
+            }
+            throw "Swap crosses too many bins – quote aborted.";
           case 5:
-            _context3.p = 5;
-            _t2 = _context3.v;
-            throw new Error(_t2);
+            return _context3.a(2, amountOut);
           case 6:
+            _context3.p = 6;
+            _t3 = _context3.v;
+            throw _t3;
+          case 7:
             return _context3.a(2);
         }
-      }, _callee3, this, [[0, 5]]);
+      }, _callee3, this, [[0, 6]]);
     }));
     function calculateAmountOut(_x6, _x7, _x8, _x9) {
       return _calculateAmountOut.apply(this, arguments);
@@ -7028,24 +7058,415 @@ var shlDiv = function shlDiv(x, y, offset, rounding) {
   return mulDiv(x, scale, y, rounding);
 };
 
-var LiquidityShape;
-(function (LiquidityShape) {
-  LiquidityShape["Spot"] = "Spot";
-  LiquidityShape["Curve"] = "Curve";
-  LiquidityShape["BidAsk"] = "BidAsk";
-})(LiquidityShape || (LiquidityShape = {}));
-var RemoveLiquidityType;
-(function (RemoveLiquidityType) {
-  RemoveLiquidityType["Both"] = "removeBoth";
-  RemoveLiquidityType["BaseToken"] = "removeBaseToken";
-  RemoveLiquidityType["QuoteToken"] = "removeQuoteToken";
-})(RemoveLiquidityType || (RemoveLiquidityType = {}));
-
+var getCurveDistributionFromBinRange = function getCurveDistributionFromBinRange(binRange) {
+  var activeId = 0;
+  // init return values
+  var deltaIds = [],
+    _distributionX = [],
+    _distributionY = [];
+  // get sigma based on radius R
+  var getSigma = function getSigma(_R) {
+    var factor = _R >= 20 ? 2.0 : _R >= 15 ? 1.8 : _R >= 10 ? 1.7 : _R >= 8 ? 1.6 : _R >= 6 ? 1.5 : _R >= 5 ? 1.4 : 1.0;
+    return _R / factor;
+  };
+  // range only includes B tokens (Y tokens)
+  if (binRange[1] < activeId) {
+    var negDelta = binRange[1] - binRange[0] + 1;
+    var negativeDeltaIds = Array.from(Array(activeId - binRange[0]).keys()).reverse().slice(0, negDelta).map(function (el) {
+      return -1 * (el + 1);
+    });
+    deltaIds = [].concat(negativeDeltaIds);
+    if (activeId === binRange[1]) {
+      deltaIds.push(0);
+    }
+    _distributionX = [].concat(Array(deltaIds.length).fill(0));
+    // radius is num of bins
+    var R = deltaIds.length - 1;
+    var sigma = getSigma(R);
+    // A = 1 / (sigma  * sqrt(2 * pi))
+    var A = 1 / (Math.sqrt(Math.PI * 2) * sigma);
+    // dist = 2 * A * exp(-0.5 * (r /sigma) ^ 2)
+    // r is distance from right-most bin
+    _distributionY = deltaIds.map(function (_, ind) {
+      return 2 * A * Math.exp(-0.5 * Math.pow((R - ind) / sigma, 2));
+    });
+  }
+  // range only includes A tokens (X tokens)
+  else if (activeId < binRange[0]) {
+    var posDelta = binRange[1] - binRange[0] + 1;
+    var positiveDeltaIds = Array.from(Array(binRange[1] - activeId).keys()).reverse().slice(0, posDelta).reverse().map(function (el) {
+      return el + 1;
+    });
+    deltaIds = [].concat(positiveDeltaIds);
+    if (activeId === binRange[0]) {
+      deltaIds.unshift(0);
+    }
+    _distributionY = [].concat(Array(deltaIds.length).fill(0));
+    // radius is num of bins
+    var _R2 = deltaIds.length - 1;
+    var _sigma = getSigma(_R2);
+    // A = 1 / (sigma  * sqrt(2 * pi))
+    var _A = 1 / (Math.sqrt(Math.PI * 2) * _sigma);
+    // dist = 2 * A * exp(-0.5 * (r /sigma) ^ 2)
+    // r is distance from left-most bin
+    _distributionX = deltaIds.map(function (_, ind) {
+      return 2 * _A * Math.exp(-0.5 * Math.pow(ind / _sigma, 2));
+    });
+  }
+  // range includes both X and Y tokens
+  else {
+    var _negDelta = activeId - binRange[0];
+    var _posDelta = binRange[1] - activeId;
+    var _negativeDeltaIds = Array.from(Array(_negDelta).keys()).reverse().map(function (el) {
+      return -1 * (el + 1);
+    });
+    var _positiveDeltaIds = Array.from(Array(_posDelta).keys()).map(function (el) {
+      return el + 1;
+    });
+    deltaIds = [].concat(_negativeDeltaIds, [0], _positiveDeltaIds);
+    // radius is num of bins
+    var RX = _positiveDeltaIds.length;
+    var sigmaX = getSigma(RX);
+    // A = 1 / (sigma  * sqrt(2 * pi))
+    var AX = RX === 0 ? 1 : 1 / (Math.sqrt(Math.PI * 2) * sigmaX);
+    // dist = 2 * A * exp(-0.5 * (r /sigma) ^ 2)
+    // r is distance from 0
+    _distributionX = [].concat(Array(_negDelta).fill(0), [AX], _positiveDeltaIds.map(function (_, ind) {
+      return 2 * AX * Math.exp(-0.5 * Math.pow((ind + 1) / sigmaX, 2));
+    }));
+    // radius is num of bins
+    var RY = _negativeDeltaIds.length;
+    var sigmaY = getSigma(RY);
+    // A = 1 / (sigma  * sqrt(2 * pi))
+    var AY = RY === 0 ? 1 : 1 / (Math.sqrt(Math.PI * 2) * sigmaY);
+    // dist = 2 * A * exp(-0.5 * (r /sigma) ^ 2)
+    // r is distance from 0
+    _distributionY = [].concat(_negativeDeltaIds.map(function (_, ind) {
+      return 2 * AY * Math.exp(-0.5 * Math.pow((RY - ind) / sigmaY, 2));
+    }), [AY], Array(_posDelta).fill(0));
+  }
+  var liquidityDistributionX = _distributionX.map(function (i) {
+    return Math.floor(i * MAX_BASIS_POINTS);
+  });
+  var liquidityDistributionY = _distributionY.map(function (i) {
+    return Math.floor(i * MAX_BASIS_POINTS);
+  });
+  // check totalX and totalY with MAX_BASIS_POINTS
+  var totalX = liquidityDistributionX.reduce(function (acc, val) {
+    return acc + val;
+  }, 0);
+  var totalY = liquidityDistributionY.reduce(function (acc, val) {
+    return acc + val;
+  }, 0);
+  if (totalX > 0 && totalX !== MAX_BASIS_POINTS) {
+    var isOverflow = totalX > MAX_BASIS_POINTS;
+    var overPoint = Math.abs(totalX - MAX_BASIS_POINTS);
+    var numberBins = liquidityDistributionX.filter(function (i) {
+      return i > 0;
+    }).length;
+    var _divRem = divRem(overPoint, numberBins),
+      quotient = _divRem[0],
+      remainder = _divRem[1];
+    liquidityDistributionX = liquidityDistributionX.map(function (i) {
+      if (i === 0) return i;
+      return isOverflow ? i - Math.floor(quotient) : i + Math.floor(quotient);
+    });
+    var remainderLeft = remainder;
+    if (remainder > 0) {
+      if (!isOverflow) {
+        liquidityDistributionX = liquidityDistributionX.map(function (i) {
+          if (i === 0) return i;
+          if (remainderLeft > 0) {
+            remainderLeft--;
+            return i + 1;
+          }
+          return i;
+        });
+      } else {
+        var reverseLiquid = liquidityDistributionX.reverse().map(function (i) {
+          if (i === 0) return i;
+          if (remainderLeft > 0) {
+            remainderLeft--;
+            return i - 1;
+          }
+          return i;
+        });
+        liquidityDistributionX = reverseLiquid.reverse();
+      }
+    }
+  }
+  if (totalY > 0 && totalY !== MAX_BASIS_POINTS) {
+    var _isOverflow = totalY > MAX_BASIS_POINTS;
+    var _overPoint = Math.abs(totalY - MAX_BASIS_POINTS);
+    var _numberBins = liquidityDistributionY.filter(function (i) {
+      return i > 0;
+    }).length;
+    var _divRem2 = divRem(_overPoint, _numberBins),
+      _quotient = _divRem2[0],
+      _remainder = _divRem2[1];
+    liquidityDistributionY = liquidityDistributionY.map(function (i, idx) {
+      if (i === 0) return i;
+      if (_remainder > 0 && idx === _numberBins - 1) {
+        return _isOverflow ? i - Math.floor(_quotient) - _remainder : i + Math.floor(_quotient) + _remainder;
+      }
+      return _isOverflow ? i - Math.floor(_quotient) : i + Math.floor(_quotient);
+    });
+  }
+  //return
+  var liquidityDistribution = deltaIds.map(function (i, idx) {
+    return {
+      relativeBinId: i,
+      distributionX: liquidityDistributionX[idx],
+      distributionY: liquidityDistributionY[idx]
+    };
+  });
+  return liquidityDistribution;
+};
+function createUniformDistribution(params) {
+  var shape = params.shape,
+    binRange = params.binRange;
+  var minBin = binRange[0],
+    maxBin = binRange[1];
+  if (minBin > maxBin) {
+    throw new Error("Invalid binRange: minBin must be <= maxBin");
+  }
+  var relativeIds = Array.from({
+    length: maxBin - minBin + 1
+  }, function (_, i) {
+    return i + minBin;
+  });
+  if (shape === LiquidityShape.Spot) {
+    var totalArrayLength = maxBin - minBin + 1;
+    var findActiveBinIndex = relativeIds.findIndex(function (item) {
+      return item === 0;
+    });
+    if (findActiveBinIndex === -1) {
+      var isOnlyX = minBin > 0;
+      var isOnlyY = maxBin < 0;
+      var distribution = MAX_BASIS_POINTS / totalArrayLength;
+      return relativeIds.map(function (x) {
+        return {
+          relativeBinId: x,
+          distributionX: isOnlyX ? distribution : 0,
+          distributionY: isOnlyY ? distribution : 0
+        };
+      });
+    }
+    var totalYBin = Math.abs(minBin);
+    var totalXBin = maxBin;
+    var distributionX = Array.from({
+      length: totalArrayLength
+    }, function (_, i) {
+      if (i < findActiveBinIndex) return 0;
+      var pricePerBin = Math.floor(2 * MAX_BASIS_POINTS / (totalXBin * 2 + 1));
+      if (i === findActiveBinIndex) return MAX_BASIS_POINTS - pricePerBin * totalXBin;
+      return pricePerBin;
+    });
+    var distributionY = Array.from({
+      length: totalArrayLength
+    }, function (_, i) {
+      if (i > findActiveBinIndex) return 0;
+      var pricePerBin = Math.floor(2 * MAX_BASIS_POINTS / (totalYBin * 2 + 1));
+      if (i === findActiveBinIndex) return MAX_BASIS_POINTS - pricePerBin * totalYBin;
+      return pricePerBin;
+    });
+    return relativeIds.map(function (x, i) {
+      return {
+        relativeBinId: x,
+        distributionX: distributionX[i],
+        distributionY: distributionY[i]
+      };
+    });
+  }
+  if (shape === LiquidityShape.Curve) {
+    return getCurveDistributionFromBinRange(binRange);
+  }
+  if (shape === LiquidityShape.BidAsk) {
+    //MAX_BASIS_POINTS = 10000
+    //binRange = [min, max]
+    //activeid = 0
+    var activeBin = 0;
+    var _distributionY = [];
+    var _distributionX = [];
+    var deltaIds = [];
+    if (maxBin < activeBin) {
+      var negDelta = maxBin - minBin + 1;
+      var negativeDeltaIds = Array.from(Array(activeBin - minBin).keys()).reverse().slice(0, negDelta).map(function (el) {
+        return -1 * (el + 1);
+      });
+      deltaIds = [].concat(negativeDeltaIds);
+      _distributionX = [].concat(Array(deltaIds.length).fill(0));
+      // dist = 2/R^2 * r
+      var rSquare = Math.pow(deltaIds[0], 2);
+      _distributionY = deltaIds.map(function (i) {
+        return (i - 1) * -2 / rSquare;
+      });
+    } else if (activeBin < minBin) {
+      var posDelta = binRange[1] - binRange[0] + 1;
+      var positiveDeltaIds = Array.from(Array(binRange[1] - activeBin).keys()).reverse().slice(0, posDelta).reverse().map(function (el) {
+        return el + 1;
+      });
+      deltaIds = [].concat(positiveDeltaIds);
+      // dist = 2/R^2 * i
+      var _rSquare = Math.pow(deltaIds[deltaIds.length - 1], 2);
+      _distributionX = deltaIds.map(function (i) {
+        return (i + 1) * 2 / _rSquare;
+      });
+      _distributionY = [].concat(Array(deltaIds.length).fill(0));
+    } else {
+      var _negDelta2 = activeBin - binRange[0];
+      var _posDelta2 = binRange[1] - activeBin;
+      var _negativeDeltaIds2 = Array.from(Array(_negDelta2).keys()).reverse().map(function (el) {
+        return -1 * (el + 1);
+      });
+      var _positiveDeltaIds2 = Array.from(Array(_posDelta2).keys()).map(function (el) {
+        return el + 1;
+      });
+      deltaIds = [].concat(_negativeDeltaIds2, [0], _positiveDeltaIds2);
+      // dist = 1/R^2 * i
+      var rSquareX = _positiveDeltaIds2.length === 0 ? 1 : _positiveDeltaIds2.length === 1 && _positiveDeltaIds2[0] === 1 ? 3 : Math.pow(_positiveDeltaIds2[_positiveDeltaIds2.length - 1], 2);
+      _distributionX = [].concat(Array(_negDelta2).fill(0), [1 / rSquareX], _positiveDeltaIds2.map(function (i) {
+        return (i + 1) / rSquareX;
+      }));
+      // dist = 1/R^2 * i
+      var rSquareY = _negativeDeltaIds2.length === 0 ? 1 : _negativeDeltaIds2[0] === -1 ? 3 : Math.pow(_negativeDeltaIds2[0], 2);
+      _distributionY = [].concat(_negativeDeltaIds2.map(function (i) {
+        return -1 * (i - 1) / rSquareY;
+      }), [1 / rSquareY], Array(_posDelta2).fill(0));
+    }
+    var liquidityDistributionX = _distributionX.map(function (i) {
+      return Math.floor(i * MAX_BASIS_POINTS);
+    });
+    var liquidityDistributionY = _distributionY.map(function (i) {
+      return Math.floor(i * MAX_BASIS_POINTS);
+    });
+    // check totalX and totalY with MAX_BASIS_POINTS
+    var totalX = liquidityDistributionX.reduce(function (acc, val) {
+      return acc + val;
+    }, 0);
+    var totalY = liquidityDistributionY.reduce(function (acc, val) {
+      return acc + val;
+    }, 0);
+    if (totalX > 0 && totalX !== MAX_BASIS_POINTS) {
+      var isOverflow = totalX > MAX_BASIS_POINTS;
+      var overPoint = Math.abs(totalX - MAX_BASIS_POINTS);
+      var numberBins = liquidityDistributionX.filter(function (i) {
+        return i > 0;
+      }).length;
+      var _divRem3 = divRem(overPoint, numberBins),
+        quotient = _divRem3[0],
+        remainder = _divRem3[1];
+      liquidityDistributionX = liquidityDistributionX.map(function (i) {
+        if (i === 0) return i;
+        return isOverflow ? i - Math.floor(quotient) : i + Math.floor(quotient);
+      });
+      var remainderLeft = remainder;
+      if (remainder > 0) {
+        if (!isOverflow) {
+          liquidityDistributionX = liquidityDistributionX.map(function (i) {
+            if (i === 0) return i;
+            if (remainderLeft > 0) {
+              remainderLeft--;
+              return i + 1;
+            }
+            return i;
+          });
+        } else {
+          var reverseLiquid = liquidityDistributionX.reverse().map(function (i) {
+            if (i === 0) return i;
+            if (remainderLeft > 0) {
+              remainderLeft--;
+              return i - 1;
+            }
+            return i;
+          });
+          liquidityDistributionX = reverseLiquid.reverse();
+        }
+      }
+    }
+    if (totalY > 0 && totalY !== MAX_BASIS_POINTS) {
+      var _isOverflow2 = totalY > MAX_BASIS_POINTS;
+      var _overPoint2 = Math.abs(totalY - MAX_BASIS_POINTS);
+      var _numberBins2 = liquidityDistributionY.filter(function (i) {
+        return i > 0;
+      }).length;
+      var _divRem4 = divRem(_overPoint2, _numberBins2),
+        _quotient2 = _divRem4[0],
+        _remainder2 = _divRem4[1];
+      liquidityDistributionY = liquidityDistributionY.map(function (i, idx) {
+        if (i === 0) return i;
+        if (_remainder2 > 0 && idx === 0) {
+          return _isOverflow2 ? i - Math.floor(_quotient2) - _remainder2 : i + Math.floor(_quotient2) + _remainder2;
+        }
+        return _isOverflow2 ? i - Math.floor(_quotient2) : i + Math.floor(_quotient2);
+      });
+    }
+    var liquidityDistribution = deltaIds.map(function (i, idx) {
+      return {
+        relativeBinId: i,
+        distributionX: liquidityDistributionX[idx],
+        distributionY: liquidityDistributionY[idx]
+      };
+    });
+    return liquidityDistribution;
+  }
+  throw new Error("Unsupported liquidity shape: " + shape);
+}
+var getMaxPosition = function getMaxPosition(range, activeId) {
+  var leftRangeIndex = Math.floor(activeId / 16);
+  var rangeFromIndex = [Math.floor((activeId + range[0]) / 16), Math.floor((activeId + range[1]) / 16)];
+  var positions = Array.from({
+    length: rangeFromIndex[1] - rangeFromIndex[0] + 1
+  }, function (_, index) {
+    return rangeFromIndex[0] + index - leftRangeIndex;
+  });
+  return positions;
+};
+var getMaxBinArray = function getMaxBinArray(range, activeId) {
+  var arrayIndex = [activeId + range[0], activeId + range[1]];
+  var binIndex = [Math.floor(arrayIndex[0] / BIN_ARRAY_SIZE), Math.floor(arrayIndex[1] / BIN_ARRAY_SIZE)];
+  // check if binArrayLower, binArrayUpper is the same
+  if (binIndex[1] === binIndex[0]) {
+    binIndex[1] += 1;
+  }
+  var binArrayIndexLen = binIndex[1] - binIndex[0] - 1;
+  var binArrayList = Array.from({
+    length: binArrayIndexLen + 1
+  }, function (_, i) {
+    var index = binIndex[0] + i * 2;
+    return {
+      binArrayLowerIndex: index,
+      binArrayUpperIndex: index + 1
+    };
+  });
+  return binArrayList;
+};
+var getBinRange = function getBinRange(index, activeId) {
+  var firstBinId = Math.floor(activeId % 16);
+  var firstArray = [-firstBinId, -firstBinId + 16 - 1];
+  var range = [firstArray[0] + index * FIXED_LENGTH, firstArray[1] + index * FIXED_LENGTH];
+  return {
+    range: range,
+    binLower: activeId + range[0],
+    binUpper: activeId + range[1] - 1
+  };
+};
+var findPosition = function findPosition(index, activeBin) {
+  if (activeBin === void 0) {
+    activeBin = ACTIVE_ID;
+  }
+  return function (position) {
+    var _getBinRange = getBinRange(index, activeBin),
+      binLower = _getBinRange.binLower,
+      binUpper = _getBinRange.binUpper;
+    return position.lowerBinId <= binLower && position.upperBinId >= binUpper;
+  };
+};
 var getGasPrice = /*#__PURE__*/function () {
   var _ref = /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee2(connection) {
     var buffNum;
     return _regenerator().w(function (_context2) {
-      while (1) switch (_context2.n) {
+      while (1) switch (_context2.p = _context2.n) {
         case 0:
           buffNum = 100;
           _context2.p = 1;
@@ -7176,7 +7597,7 @@ var LiquidityBookServices = /*#__PURE__*/function (_LiquidityBookAbstrac) {
     var _getBinArrayInfo = /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee4(params) {
       var binArrayIndex, pair, payer, resultIndex, result, binArray, _yield$this$lbProgram, bins, binArrayOther, res, _binArrayOther, _res;
       return _regenerator().w(function (_context4) {
-        while (1) switch (_context4.n) {
+        while (1) switch (_context4.p = _context4.n) {
           case 0:
             binArrayIndex = params.binArrayIndex, pair = params.pair, payer = params.payer;
             resultIndex = binArrayIndex;
@@ -7619,7 +8040,7 @@ var LiquidityBookServices = /*#__PURE__*/function (_LiquidityBookAbstrac) {
             _context0.n = 9;
             return Promise.all(maxPositionList.map(/*#__PURE__*/function () {
               var _ref2 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee9(_ref) {
-                var position, start, end, positionMint, binArrayIndex, _yield$_this$getBinAr, resultIndex, binArrayLower, binArrayUpper, tx, positionVault, reserveXY, hookBinArrayLower, hookBinArrayUpper, hookPosition, removedShares, availableShares, isClosePosition, instructions, _this$lbProgram$metho, _instructions, _t2, _t3;
+                var position, start, end, positionMint, binArrayIndex, _yield$_this$getBinAr, resultIndex, binArrayLower, binArrayUpper, tx, positionVault, reserveXY, hookBinArrayLower, hookBinArrayUpper, hookPosition, removedShares, availableShares, isClosePosition, instructions, _this$lbProgram$metho, _instructions, _t2;
                 return _regenerator().w(function (_context9) {
                   while (1) switch (_context9.n) {
                     case 0:
@@ -7666,8 +8087,7 @@ var LiquidityBookServices = /*#__PURE__*/function (_LiquidityBookAbstrac) {
                         payer: payer
                       });
                     case 4:
-                      _t3 = _context9.v;
-                      reserveXY = _t2(_t3);
+                      reserveXY = _t2(_context9.v);
                       hookBinArrayLower = PublicKey.findProgramAddressSync([Buffer$1.from(utils.bytes.utf8.encode("bin_array")), hook.toBuffer(), new BN(BIN_ARRAY_INDEX).toArrayLike(Buffer$1, "le", 4)], _this.hooksProgram.programId)[0];
                       hookBinArrayUpper = PublicKey.findProgramAddressSync([Buffer$1.from(utils.bytes.utf8.encode("bin_array")), hook.toBuffer(), new BN(BIN_ARRAY_INDEX + 1).toArrayLike(Buffer$1, "le", 4)], _this.hooksProgram.programId)[0];
                       hookPosition = PublicKey.findProgramAddressSync([Buffer$1.from(utils.bytes.utf8.encode("position")), hook.toBuffer(), new PublicKey(position).toBuffer()], _this.hooksProgram.programId)[0];
@@ -7815,52 +8235,97 @@ var LiquidityBookServices = /*#__PURE__*/function (_LiquidityBookAbstrac) {
     return removeMultipleLiquidity;
   }();
   _proto.swap = /*#__PURE__*/function () {
-    var _swap = /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee1(params) {
-      var tokenMintX, tokenMintY, amount, otherAmountOffset, swapForY, isExactInput, pair, hook, payer, pairInfo, binArrayIndex, binArrayLower, binArrayUpper, _yield$Promise$all, tokenProgramX, tokenProgramY, latestBlockHash, tx, associatedPairVaultX, associatedPairVaultY, associatedUserVaultX, associatedUserVaultY, infoUserVaultX, userVaultXInstructions, infoUserVaultY, userVaultYInstructions, hookBinArrayLower, hookBinArrayUpper, isNativeY, associatedUserVault, swapInstructions, _isNativeY, _associatedUserVault;
-      return _regenerator().w(function (_context1) {
-        while (1) switch (_context1.n) {
+    var _swap = /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee10(params) {
+      var _this2 = this;
+      var tokenMintX, tokenMintY, amount, otherAmountOffset, swapForY, isExactInput, pair, hook, payer, pairInfo, currentBinArrayIndex, surroundingIndexes, binArrayAddresses, binArrayAccountsInfo, validIndexes, binArrayLowerIndex, binArrayUpperIndex, activeOffset, first, second, third, _ref4, binArrayLower, binArrayUpper, _yield$Promise$all, tokenProgramX, tokenProgramY, latestBlockHash, tx, associatedPairVaultX, associatedPairVaultY, associatedUserVaultX, associatedUserVaultY, infoUserVaultX, userVaultXInstructions, infoUserVaultY, userVaultYInstructions, hookBinArrayLower, hookBinArrayUpper, isNativeY, associatedUserVault, swapInstructions, _isNativeY, _associatedUserVault;
+      return _regenerator().w(function (_context10) {
+        while (1) switch (_context10.n) {
           case 0:
             tokenMintX = params.tokenMintX, tokenMintY = params.tokenMintY, amount = params.amount, otherAmountOffset = params.otherAmountOffset, swapForY = params.swapForY, isExactInput = params.isExactInput, pair = params.pair, hook = params.hook, payer = params.payer;
-            _context1.n = 1;
+            _context10.n = 1;
             return this.getPairAccount(pair);
           case 1:
-            pairInfo = _context1.v;
+            pairInfo = _context10.v;
             if (pairInfo) {
-              _context1.n = 2;
+              _context10.n = 2;
               break;
             }
             throw new Error("Pair not found");
           case 2:
-            binArrayIndex = pairInfo.activeId / BIN_ARRAY_SIZE;
-            if (pairInfo.activeId % BIN_ARRAY_SIZE < BIN_ARRAY_SIZE / 2) {
-              binArrayIndex -= 1;
-            }
-            _context1.n = 3;
-            return this.getBinArray({
-              binArrayIndex: binArrayIndex,
-              pair: pair,
-              payer: payer
-            });
+            currentBinArrayIndex = Math.floor(pairInfo.activeId / BIN_ARRAY_SIZE);
+            surroundingIndexes = [currentBinArrayIndex - 1, currentBinArrayIndex, currentBinArrayIndex + 1];
+            _context10.n = 3;
+            return Promise.all(surroundingIndexes.map(/*#__PURE__*/function () {
+              var _ref3 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee1(idx) {
+                return _regenerator().w(function (_context1) {
+                  while (1) switch (_context1.n) {
+                    case 0:
+                      _context1.n = 1;
+                      return _this2.getBinArray({
+                        binArrayIndex: idx,
+                        pair: pair,
+                        payer: payer
+                      });
+                    case 1:
+                      return _context1.a(2, _context1.v);
+                  }
+                }, _callee1);
+              }));
+              return function (_x10) {
+                return _ref3.apply(this, arguments);
+              };
+            }()));
           case 3:
-            binArrayLower = _context1.v;
-            _context1.n = 4;
+            binArrayAddresses = _context10.v;
+            _context10.n = 4;
+            return this.connection.getMultipleAccountsInfo(binArrayAddresses);
+          case 4:
+            binArrayAccountsInfo = _context10.v;
+            validIndexes = surroundingIndexes.filter(function (_, i) {
+              return binArrayAccountsInfo[i];
+            });
+            if (!(validIndexes.length < 2)) {
+              _context10.n = 5;
+              break;
+            }
+            throw new Error("No valid bin arrays found for the pair");
+          case 5:
+            if (validIndexes.length === 2) {
+              binArrayLowerIndex = validIndexes[0];
+              binArrayUpperIndex = validIndexes[1];
+            } else {
+              activeOffset = pairInfo.activeId % BIN_ARRAY_SIZE;
+              first = validIndexes[0], second = validIndexes[1], third = validIndexes[2];
+              _ref4 = activeOffset < BIN_ARRAY_SIZE / 2 ? [first, second] : [second, third];
+              binArrayLowerIndex = _ref4[0];
+              binArrayUpperIndex = _ref4[1];
+            }
+            _context10.n = 6;
             return this.getBinArray({
-              binArrayIndex: binArrayIndex + 1,
               pair: pair,
+              binArrayIndex: binArrayLowerIndex,
               payer: payer
             });
-          case 4:
-            binArrayUpper = _context1.v;
-            _context1.n = 5;
+          case 6:
+            binArrayLower = _context10.v;
+            _context10.n = 7;
+            return this.getBinArray({
+              pair: pair,
+              binArrayIndex: binArrayUpperIndex,
+              payer: payer
+            });
+          case 7:
+            binArrayUpper = _context10.v;
+            _context10.n = 8;
             return Promise.all([getProgram(tokenMintX, this.connection), getProgram(tokenMintY, this.connection)]);
-          case 5:
-            _yield$Promise$all = _context1.v;
+          case 8:
+            _yield$Promise$all = _context10.v;
             tokenProgramX = _yield$Promise$all[0];
             tokenProgramY = _yield$Promise$all[1];
-            _context1.n = 6;
+            _context10.n = 9;
             return this.connection.getLatestBlockhash();
-          case 6:
-            latestBlockHash = _context1.v;
+          case 9:
+            latestBlockHash = _context10.v;
             tx = new Transaction({
               feePayer: payer,
               blockhash: latestBlockHash.blockhash,
@@ -7870,18 +8335,18 @@ var LiquidityBookServices = /*#__PURE__*/function (_LiquidityBookAbstrac) {
             associatedPairVaultY = getAssociatedTokenAddressSync(tokenMintY, pair, true, tokenProgramY);
             associatedUserVaultX = getAssociatedTokenAddressSync(tokenMintX, payer, true, tokenProgramX);
             associatedUserVaultY = getAssociatedTokenAddressSync(tokenMintY, payer, true, tokenProgramY);
-            _context1.n = 7;
+            _context10.n = 10;
             return this.connection.getAccountInfo(associatedUserVaultX);
-          case 7:
-            infoUserVaultX = _context1.v;
+          case 10:
+            infoUserVaultX = _context10.v;
             if (!infoUserVaultX) {
               userVaultXInstructions = createAssociatedTokenAccountInstruction(payer, associatedUserVaultX, payer, tokenMintX, tokenProgramX);
               tx.add(userVaultXInstructions);
             }
-            _context1.n = 8;
+            _context10.n = 11;
             return this.connection.getAccountInfo(associatedUserVaultY);
-          case 8:
-            infoUserVaultY = _context1.v;
+          case 11:
+            infoUserVaultY = _context10.v;
             if (!infoUserVaultY) {
               userVaultYInstructions = createAssociatedTokenAccountInstruction(payer, associatedUserVaultY, payer, tokenMintY, tokenProgramY);
               tx.add(userVaultYInstructions);
@@ -7908,7 +8373,7 @@ var LiquidityBookServices = /*#__PURE__*/function (_LiquidityBookAbstrac) {
                 tx.add(createSyncNativeInstruction(associatedUserVault));
               }
             }
-            _context1.n = 9;
+            _context10.n = 12;
             return this.lbProgram.methods.swap(new BN(amount.toString()), new BN(otherAmountOffset.toString()), swapForY, isExactInput ? {
               exactInput: {}
             } : {
@@ -7947,8 +8412,8 @@ var LiquidityBookServices = /*#__PURE__*/function (_LiquidityBookAbstrac) {
               isWritable: true,
               isSigner: false
             }]).instruction();
-          case 9:
-            swapInstructions = _context1.v;
+          case 12:
+            swapInstructions = _context10.v;
             tx.add(swapInstructions);
             if (tokenMintY.toString() === WRAP_SOL_ADDRESS || tokenMintX.toString() === WRAP_SOL_ADDRESS) {
               _isNativeY = tokenMintY.toString() === WRAP_SOL_ADDRESS;
@@ -7957,9 +8422,9 @@ var LiquidityBookServices = /*#__PURE__*/function (_LiquidityBookAbstrac) {
                 tx.add(createCloseAccountInstruction(_associatedUserVault, payer, payer));
               }
             }
-            return _context1.a(2, tx);
+            return _context10.a(2, tx);
         }
-      }, _callee1, this);
+      }, _callee10, this);
     }));
     function swap(_x1) {
       return _swap.apply(this, arguments);
@@ -7967,16 +8432,16 @@ var LiquidityBookServices = /*#__PURE__*/function (_LiquidityBookAbstrac) {
     return swap;
   }();
   _proto.getQuote = /*#__PURE__*/function () {
-    var _getQuote = /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee10(params) {
-      var data, amountIn, amountOut, slippageFraction, slippageScaled, maxAmountIn, minAmountOut, _yield$this$getMaxAmo, maxAmountOut, priceImpact, _t4;
-      return _regenerator().w(function (_context10) {
-        while (1) switch (_context10.n) {
+    var _getQuote = /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee11(params) {
+      var data, amountIn, amountOut, slippageFraction, slippageScaled, maxAmountIn, minAmountOut, _yield$this$getMaxAmo, maxAmountOut, priceImpact, _t3;
+      return _regenerator().w(function (_context11) {
+        while (1) switch (_context11.p = _context11.n) {
           case 0:
-            _context10.p = 0;
-            _context10.n = 1;
+            _context11.p = 0;
+            _context11.n = 1;
             return LBSwapService.fromLbConfig(this.lbProgram, this.connection).calculateInOutAmount(params);
           case 1:
-            data = _context10.v;
+            data = _context11.v;
             amountIn = data.amountIn, amountOut = data.amountOut;
             slippageFraction = params.slippage / 100;
             slippageScaled = Math.round(slippageFraction * PRECISION);
@@ -7988,13 +8453,13 @@ var LiquidityBookServices = /*#__PURE__*/function (_LiquidityBookAbstrac) {
               // max mount in should div for slippage
               maxAmountIn = amountIn * BigInt(PRECISION) / BigInt(PRECISION - slippageScaled);
             }
-            _context10.n = 2;
+            _context11.n = 2;
             return this.getMaxAmountOutWithFee(params.pair, Number(amountIn.toString()), params.swapForY, params.tokenBaseDecimal, params.tokenQuoteDecimal);
           case 2:
-            _yield$this$getMaxAmo = _context10.v;
+            _yield$this$getMaxAmo = _context11.v;
             maxAmountOut = _yield$this$getMaxAmo.maxAmountOut;
             priceImpact = new bigDecimal(amountOut).subtract(new bigDecimal(maxAmountOut)).divide(new bigDecimal(maxAmountOut)).multiply(new bigDecimal(100)).getValue();
-            return _context10.a(2, {
+            return _context11.a(2, {
               amountIn: amountIn,
               amountOut: amountOut,
               amount: params.isExactInput ? maxAmountIn : minAmountOut,
@@ -8002,24 +8467,24 @@ var LiquidityBookServices = /*#__PURE__*/function (_LiquidityBookAbstrac) {
               priceImpact: Number(priceImpact)
             });
           case 3:
-            _context10.p = 3;
-            _t4 = _context10.v;
-            throw _t4;
+            _context11.p = 3;
+            _t3 = _context11.v;
+            throw _t3;
           case 4:
-            return _context10.a(2);
+            return _context11.a(2);
         }
-      }, _callee10, this, [[0, 3]]);
+      }, _callee11, this, [[0, 3]]);
     }));
-    function getQuote(_x10) {
+    function getQuote(_x11) {
       return _getQuote.apply(this, arguments);
     }
     return getQuote;
   }();
   _proto.getMaxAmountOutWithFee = /*#__PURE__*/function () {
-    var _getMaxAmountOutWithFee = /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee11(pairAddress, amount, swapForY, decimalBase, decimalQuote) {
+    var _getMaxAmountOutWithFee = /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee12(pairAddress, amount, swapForY, decimalBase, decimalQuote) {
       var amountIn, pair, activeId, binStep, swapService, feePrice, activePrice, price, feeAmount, maxAmountOut;
-      return _regenerator().w(function (_context11) {
-        while (1) switch (_context11.n) {
+      return _regenerator().w(function (_context12) {
+        while (1) switch (_context12.p = _context12.n) {
           case 0:
             if (swapForY === void 0) {
               swapForY = false;
@@ -8030,12 +8495,12 @@ var LiquidityBookServices = /*#__PURE__*/function (_LiquidityBookAbstrac) {
             if (decimalQuote === void 0) {
               decimalQuote = 9;
             }
-            _context11.p = 1;
+            _context12.p = 1;
             amountIn = BigInt(amount);
-            _context11.n = 2;
+            _context12.n = 2;
             return this.getPairAccount(pairAddress);
           case 2:
-            pair = _context11.v;
+            pair = _context12.v;
             activeId = pair == null ? void 0 : pair.activeId;
             binStep = pair == null ? void 0 : pair.binStep;
             swapService = LBSwapService.fromLbConfig(this.lbProgram, this.connection);
@@ -8045,20 +8510,20 @@ var LiquidityBookServices = /*#__PURE__*/function (_LiquidityBookAbstrac) {
             feeAmount = swapService.getFeeAmount(amountIn, feePrice);
             amountIn = BigInt(amountIn) - BigInt(feeAmount); // new BN(amountIn).subtract(new BN(feeAmount));
             maxAmountOut = swapForY ? mulShr(Number(amountIn.toString()), activePrice, SCALE_OFFSET, "down") : shlDiv(Number(amountIn.toString()), activePrice, SCALE_OFFSET, "down");
-            return _context11.a(2, {
+            return _context12.a(2, {
               maxAmountOut: maxAmountOut,
               price: price
             });
           case 3:
-            _context11.p = 3;
-            return _context11.a(2, {
+            _context12.p = 3;
+            return _context12.a(2, {
               maxAmountOut: 0,
               price: 0
             });
         }
-      }, _callee11, this, [[1, 3]]);
+      }, _callee12, this, [[1, 3]]);
     }));
-    function getMaxAmountOutWithFee(_x11, _x12, _x13, _x14, _x15) {
+    function getMaxAmountOutWithFee(_x12, _x13, _x14, _x15, _x16) {
       return _getMaxAmountOutWithFee.apply(this, arguments);
     }
     return getMaxAmountOutWithFee;
@@ -8070,10 +8535,10 @@ var LiquidityBookServices = /*#__PURE__*/function (_LiquidityBookAbstrac) {
     return this.lbProgram.programId;
   };
   _proto.fetchPoolAddresses = /*#__PURE__*/function () {
-    var _fetchPoolAddresses = /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee12() {
+    var _fetchPoolAddresses = /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee13() {
       var programId, connection, pairAccount, pairAccountDiscriminator, accounts, poolAdresses;
-      return _regenerator().w(function (_context12) {
-        while (1) switch (_context12.n) {
+      return _regenerator().w(function (_context13) {
+        while (1) switch (_context13.n) {
           case 0:
             programId = this.getDexProgramId();
             connection = this.connection;
@@ -8082,12 +8547,12 @@ var LiquidityBookServices = /*#__PURE__*/function (_LiquidityBookAbstrac) {
             });
             pairAccountDiscriminator = pairAccount ? pairAccount.discriminator : undefined;
             if (pairAccountDiscriminator) {
-              _context12.n = 1;
+              _context13.n = 1;
               break;
             }
             throw new Error("Pair account not found");
           case 1:
-            _context12.n = 2;
+            _context13.n = 2;
             return connection.getProgramAccounts(new PublicKey(programId), {
               filters: [{
                 memcmp: {
@@ -8097,9 +8562,9 @@ var LiquidityBookServices = /*#__PURE__*/function (_LiquidityBookAbstrac) {
               }]
             });
           case 2:
-            accounts = _context12.v;
+            accounts = _context13.v;
             if (!(accounts.length === 0)) {
-              _context12.n = 3;
+              _context13.n = 3;
               break;
             }
             throw new Error("Pair not found");
@@ -8114,9 +8579,9 @@ var LiquidityBookServices = /*#__PURE__*/function (_LiquidityBookAbstrac) {
               addresses.push(account.pubkey.toString());
               return addresses;
             }, []);
-            return _context12.a(2, poolAdresses);
+            return _context13.a(2, poolAdresses);
         }
-      }, _callee12, this);
+      }, _callee13, this);
     }));
     function fetchPoolAddresses() {
       return _fetchPoolAddresses.apply(this, arguments);
@@ -8124,20 +8589,20 @@ var LiquidityBookServices = /*#__PURE__*/function (_LiquidityBookAbstrac) {
     return fetchPoolAddresses;
   }();
   _proto.getUserPositions = /*#__PURE__*/function () {
-    var _getUserPositions = /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee14(_ref3) {
-      var _this2 = this;
+    var _getUserPositions = /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee15(_ref5) {
+      var _this3 = this;
       var payer, pair, connection, tokenAccounts, positionMints, positions;
-      return _regenerator().w(function (_context14) {
-        while (1) switch (_context14.n) {
+      return _regenerator().w(function (_context15) {
+        while (1) switch (_context15.n) {
           case 0:
-            payer = _ref3.payer, pair = _ref3.pair;
+            payer = _ref5.payer, pair = _ref5.pair;
             connection = this.connection;
-            _context14.n = 1;
+            _context15.n = 1;
             return connection.getParsedTokenAccountsByOwner(payer, {
               programId: TOKEN_2022_PROGRAM_ID
             });
           case 1:
-            tokenAccounts = _context14.v;
+            tokenAccounts = _context15.v;
             positionMints = tokenAccounts.value.filter(function (acc) {
               var amount = acc.account.data.parsed.info.tokenAmount.uiAmount;
               // Only interested in NFTs or position tokens with amount > 0
@@ -8145,71 +8610,71 @@ var LiquidityBookServices = /*#__PURE__*/function (_LiquidityBookAbstrac) {
             }).map(function (acc) {
               return new PublicKey(acc.account.data.parsed.info.mint);
             });
-            _context14.n = 2;
+            _context15.n = 2;
             return Promise.all(positionMints.map(/*#__PURE__*/function () {
-              var _ref4 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee13(mint) {
+              var _ref6 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee14(mint) {
                 var _yield$PublicKey$find, positionPda, accountInfo, position;
-                return _regenerator().w(function (_context13) {
-                  while (1) switch (_context13.n) {
+                return _regenerator().w(function (_context14) {
+                  while (1) switch (_context14.p = _context14.n) {
                     case 0:
-                      _context13.n = 1;
-                      return PublicKey.findProgramAddressSync([Buffer$1.from(utils.bytes.utf8.encode("position")), mint.toBuffer()], _this2.lbProgram.programId);
+                      _context14.n = 1;
+                      return PublicKey.findProgramAddressSync([Buffer$1.from(utils.bytes.utf8.encode("position")), mint.toBuffer()], _this3.lbProgram.programId);
                     case 1:
-                      _yield$PublicKey$find = _context13.v;
+                      _yield$PublicKey$find = _context14.v;
                       positionPda = _yield$PublicKey$find[0];
-                      _context13.p = 2;
-                      _context13.n = 3;
+                      _context14.p = 2;
+                      _context14.n = 3;
                       return connection.getAccountInfo(positionPda);
                     case 3:
-                      accountInfo = _context13.v;
+                      accountInfo = _context14.v;
                       if (accountInfo) {
-                        _context13.n = 4;
+                        _context14.n = 4;
                         break;
                       }
-                      return _context13.a(2, null);
+                      return _context14.a(2, null);
                     case 4:
-                      _context13.n = 5;
-                      return _this2.lbProgram.account.position.fetch(positionPda);
+                      _context14.n = 5;
+                      return _this3.lbProgram.account.position.fetch(positionPda);
                     case 5:
-                      position = _context13.v;
+                      position = _context14.v;
                       if (!(position.pair.toString() !== pair.toString())) {
-                        _context13.n = 6;
+                        _context14.n = 6;
                         break;
                       }
-                      return _context13.a(2, null);
+                      return _context14.a(2, null);
                     case 6:
-                      return _context13.a(2, _extends({}, position, {
+                      return _context14.a(2, _extends({}, position, {
                         position: positionPda.toString()
                       }));
                     case 7:
-                      _context13.p = 7;
-                      return _context13.a(2, null);
+                      _context14.p = 7;
+                      return _context14.a(2, null);
                   }
-                }, _callee13, null, [[2, 7]]);
+                }, _callee14, null, [[2, 7]]);
               }));
-              return function (_x17) {
-                return _ref4.apply(this, arguments);
+              return function (_x18) {
+                return _ref6.apply(this, arguments);
               };
             }()));
           case 2:
-            positions = _context14.v;
-            return _context14.a(2, positions.filter(Boolean));
+            positions = _context15.v;
+            return _context15.a(2, positions.filter(Boolean));
         }
-      }, _callee14, this);
+      }, _callee15, this);
     }));
-    function getUserPositions(_x16) {
+    function getUserPositions(_x17) {
       return _getUserPositions.apply(this, arguments);
     }
     return getUserPositions;
   }();
   _proto.quote = /*#__PURE__*/function () {
-    var _quote = /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee15(params) {
+    var _quote = /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee16(params) {
       var amount, metadata, optional;
-      return _regenerator().w(function (_context15) {
-        while (1) switch (_context15.n) {
+      return _regenerator().w(function (_context16) {
+        while (1) switch (_context16.n) {
           case 0:
             amount = params.amount, metadata = params.metadata, optional = params.optional;
-            _context15.n = 1;
+            _context16.n = 1;
             return this.getQuote({
               amount: BigInt(amount),
               isExactInput: optional.isExactInput,
@@ -8222,48 +8687,48 @@ var LiquidityBookServices = /*#__PURE__*/function (_LiquidityBookAbstrac) {
               tokenQuoteDecimal: metadata.extra.tokenQuoteDecimal
             });
           case 1:
-            return _context15.a(2, _context15.v);
+            return _context16.a(2, _context16.v);
         }
-      }, _callee15, this);
+      }, _callee16, this);
     }));
-    function quote(_x18) {
+    function quote(_x19) {
       return _quote.apply(this, arguments);
     }
     return quote;
   }();
   _proto.fetchPoolMetadata = /*#__PURE__*/function () {
-    var _fetchPoolMetadata = /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee16(pair) {
+    var _fetchPoolMetadata = /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee17(pair) {
       var _pairInfo$hook;
       var connection, pairInfo, basePairVault, quotePairVault, _yield$Promise$all2, baseReserve, quoteReserve;
-      return _regenerator().w(function (_context16) {
-        while (1) switch (_context16.n) {
+      return _regenerator().w(function (_context17) {
+        while (1) switch (_context17.n) {
           case 0:
             connection = this.connection; //@ts-ignore
-            _context16.n = 1;
+            _context17.n = 1;
             return this.lbProgram.account.pair.fetch(new PublicKey(pair));
           case 1:
-            pairInfo = _context16.v;
+            pairInfo = _context17.v;
             if (pairInfo) {
-              _context16.n = 2;
+              _context17.n = 2;
               break;
             }
             throw new Error("Pair not found");
           case 2:
-            _context16.n = 3;
+            _context17.n = 3;
             return this.getPairVaultInfo({
               tokenAddress: new PublicKey(pairInfo.tokenMintX),
               pair: new PublicKey(pair)
             });
           case 3:
-            basePairVault = _context16.v;
-            _context16.n = 4;
+            basePairVault = _context17.v;
+            _context17.n = 4;
             return this.getPairVaultInfo({
               tokenAddress: new PublicKey(pairInfo.tokenMintY),
               pair: new PublicKey(pair)
             });
           case 4:
-            quotePairVault = _context16.v;
-            _context16.n = 5;
+            quotePairVault = _context17.v;
+            _context17.n = 5;
             return Promise.all([connection.getTokenAccountBalance(basePairVault)["catch"](function () {
               return {
                 value: {
@@ -8284,10 +8749,10 @@ var LiquidityBookServices = /*#__PURE__*/function (_LiquidityBookAbstrac) {
               };
             })]);
           case 5:
-            _yield$Promise$all2 = _context16.v;
+            _yield$Promise$all2 = _context17.v;
             baseReserve = _yield$Promise$all2[0];
             quoteReserve = _yield$Promise$all2[1];
-            return _context16.a(2, {
+            return _context17.a(2, {
               poolAddress: pair,
               baseMint: pairInfo.tokenMintX.toString(),
               baseReserve: baseReserve.value.amount,
@@ -8301,88 +8766,88 @@ var LiquidityBookServices = /*#__PURE__*/function (_LiquidityBookAbstrac) {
               }
             });
         }
-      }, _callee16, this);
+      }, _callee17, this);
     }));
-    function fetchPoolMetadata(_x19) {
+    function fetchPoolMetadata(_x20) {
       return _fetchPoolMetadata.apply(this, arguments);
     }
     return fetchPoolMetadata;
   }();
   _proto.getPairVaultInfo = /*#__PURE__*/function () {
-    var _getPairVaultInfo = /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee17(params) {
+    var _getPairVaultInfo = /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee18(params) {
       var tokenAddress, pair, payer, transaction, tokenMint, tokenProgram, associatedPairVault, infoPairVault, pairVaultYInstructions;
-      return _regenerator().w(function (_context17) {
-        while (1) switch (_context17.n) {
+      return _regenerator().w(function (_context18) {
+        while (1) switch (_context18.n) {
           case 0:
             tokenAddress = params.tokenAddress, pair = params.pair, payer = params.payer, transaction = params.transaction;
             tokenMint = new PublicKey(tokenAddress);
-            _context17.n = 1;
+            _context18.n = 1;
             return getProgram(tokenMint, this.connection);
           case 1:
-            tokenProgram = _context17.v;
+            tokenProgram = _context18.v;
             associatedPairVault = getAssociatedTokenAddressSync(tokenMint, pair, true, tokenProgram);
             if (!(transaction && payer)) {
-              _context17.n = 3;
+              _context18.n = 3;
               break;
             }
-            _context17.n = 2;
+            _context18.n = 2;
             return this.connection.getAccountInfo(associatedPairVault);
           case 2:
-            infoPairVault = _context17.v;
+            infoPairVault = _context18.v;
             if (!infoPairVault) {
               pairVaultYInstructions = createAssociatedTokenAccountInstruction(payer, associatedPairVault, pair, tokenMint, tokenProgram);
               transaction.add(pairVaultYInstructions);
             }
           case 3:
-            return _context17.a(2, associatedPairVault);
+            return _context18.a(2, associatedPairVault);
         }
-      }, _callee17, this);
+      }, _callee18, this);
     }));
-    function getPairVaultInfo(_x20) {
+    function getPairVaultInfo(_x21) {
       return _getPairVaultInfo.apply(this, arguments);
     }
     return getPairVaultInfo;
   }();
   _proto.getUserVaultInfo = /*#__PURE__*/function () {
-    var _getUserVaultInfo = /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee18(params) {
+    var _getUserVaultInfo = /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee19(params) {
       var tokenAddress, payer, transaction, tokenProgram, associatedUserVault, infoUserVault, userVaultYInstructions;
-      return _regenerator().w(function (_context18) {
-        while (1) switch (_context18.n) {
+      return _regenerator().w(function (_context19) {
+        while (1) switch (_context19.n) {
           case 0:
             tokenAddress = params.tokenAddress, payer = params.payer, transaction = params.transaction;
-            _context18.n = 1;
+            _context19.n = 1;
             return getProgram(tokenAddress, this.connection);
           case 1:
-            tokenProgram = _context18.v;
+            tokenProgram = _context19.v;
             associatedUserVault = getAssociatedTokenAddressSync(tokenAddress, payer, true, tokenProgram);
             if (!transaction) {
-              _context18.n = 3;
+              _context19.n = 3;
               break;
             }
-            _context18.n = 2;
+            _context19.n = 2;
             return this.connection.getAccountInfo(associatedUserVault);
           case 2:
-            infoUserVault = _context18.v;
+            infoUserVault = _context19.v;
             if (!infoUserVault) {
               userVaultYInstructions = createAssociatedTokenAccountInstruction(payer, associatedUserVault, payer, tokenAddress, tokenProgram);
               transaction.add(userVaultYInstructions);
             }
           case 3:
-            return _context18.a(2, associatedUserVault);
+            return _context19.a(2, associatedUserVault);
         }
-      }, _callee18, this);
+      }, _callee19, this);
     }));
-    function getUserVaultInfo(_x21) {
+    function getUserVaultInfo(_x22) {
       return _getUserVaultInfo.apply(this, arguments);
     }
     return getUserVaultInfo;
   }();
   _proto.listenNewPoolAddress = /*#__PURE__*/function () {
-    var _listenNewPoolAddress = /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee19(postTxFunction) {
-      var _this3 = this;
+    var _listenNewPoolAddress = /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee20(postTxFunction) {
+      var _this4 = this;
       var LB_PROGRAM_ID;
-      return _regenerator().w(function (_context19) {
-        while (1) switch (_context19.n) {
+      return _regenerator().w(function (_context20) {
+        while (1) switch (_context20.n) {
           case 0:
             LB_PROGRAM_ID = this.getDexProgramId();
             this.connection.onLogs(LB_PROGRAM_ID, function (logInfo) {
@@ -8392,7 +8857,7 @@ var LiquidityBookServices = /*#__PURE__*/function (_LiquidityBookAbstrac) {
                   var log = _step.value;
                   if (log.includes("Instruction: InitializePair")) {
                     var signature = logInfo.signature;
-                    _this3.getPairAddressFromLogs(signature).then(function (address) {
+                    _this4.getPairAddressFromLogs(signature).then(function (address) {
                       postTxFunction(address);
                     });
                   }
@@ -8400,29 +8865,29 @@ var LiquidityBookServices = /*#__PURE__*/function (_LiquidityBookAbstrac) {
               }
             }, "finalized");
           case 1:
-            return _context19.a(2);
+            return _context20.a(2);
         }
-      }, _callee19, this);
+      }, _callee20, this);
     }));
-    function listenNewPoolAddress(_x22) {
+    function listenNewPoolAddress(_x23) {
       return _listenNewPoolAddress.apply(this, arguments);
     }
     return listenNewPoolAddress;
   }();
   _proto.getPairAddressFromLogs = /*#__PURE__*/function () {
-    var _getPairAddressFromLogs = /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee20(signature) {
+    var _getPairAddressFromLogs = /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee21(signature) {
       var parsedTransaction, compiledMessage, message, instructions, initializePairStruct, initializePairDescrimator, pairAddress, _loop, _iterator2, _step2;
-      return _regenerator().w(function (_context21) {
-        while (1) switch (_context21.n) {
+      return _regenerator().w(function (_context22) {
+        while (1) switch (_context22.n) {
           case 0:
-            _context21.n = 1;
+            _context22.n = 1;
             return this.connection.getTransaction(signature, {
               maxSupportedTransactionVersion: 0
             });
           case 1:
-            parsedTransaction = _context21.v;
+            parsedTransaction = _context22.v;
             if (parsedTransaction) {
-              _context21.n = 2;
+              _context22.n = 2;
               break;
             }
             throw new Error("Transaction not found");
@@ -8438,16 +8903,16 @@ var LiquidityBookServices = /*#__PURE__*/function (_LiquidityBookAbstrac) {
             _loop = /*#__PURE__*/_regenerator().m(function _loop() {
               var _accounts$find;
               var instruction, descimatorInstruction, accounts;
-              return _regenerator().w(function (_context20) {
-                while (1) switch (_context20.n) {
+              return _regenerator().w(function (_context21) {
+                while (1) switch (_context21.n) {
                   case 0:
                     instruction = _step2.value;
                     descimatorInstruction = instruction.data.subarray(0, 8);
                     if (descimatorInstruction.equals(initializePairDescrimator)) {
-                      _context20.n = 1;
+                      _context21.n = 1;
                       break;
                     }
-                    return _context20.a(2, 1);
+                    return _context21.a(2, 1);
                   case 1:
                     //@ts-ignore
                     accounts = initializePairStruct.accounts.map(function (item, index) {
@@ -8460,32 +8925,32 @@ var LiquidityBookServices = /*#__PURE__*/function (_LiquidityBookAbstrac) {
                       return item.name === "pair";
                     })) == null ? void 0 : _accounts$find.address) || "";
                   case 2:
-                    return _context20.a(2);
+                    return _context21.a(2);
                 }
               }, _loop);
             });
             _iterator2 = _createForOfIteratorHelperLoose(instructions);
           case 3:
             if ((_step2 = _iterator2()).done) {
-              _context21.n = 6;
+              _context22.n = 6;
               break;
             }
-            return _context21.d(_regeneratorValues(_loop()), 4);
+            return _context22.d(_regeneratorValues(_loop()), 4);
           case 4:
-            if (!_context21.v) {
-              _context21.n = 5;
+            if (!_context22.v) {
+              _context22.n = 5;
               break;
             }
-            return _context21.a(3, 5);
+            return _context22.a(3, 5);
           case 5:
-            _context21.n = 3;
+            _context22.n = 3;
             break;
           case 6:
-            return _context21.a(2, pairAddress);
+            return _context22.a(2, pairAddress);
         }
-      }, _callee20, this);
+      }, _callee21, this);
     }));
-    function getPairAddressFromLogs(_x23) {
+    function getPairAddressFromLogs(_x24) {
       return _getPairAddressFromLogs.apply(this, arguments);
     }
     return getPairAddressFromLogs;
@@ -8503,5 +8968,5 @@ var LiquidityBookServices = /*#__PURE__*/function (_LiquidityBookAbstrac) {
   }]);
 }(LiquidityBookAbstract);
 
-export { ACTIVE_ID, BASE_FACTOR, BASIS_POINT_MAX, BIN_ARRAY_INDEX, BIN_ARRAY_SIZE, BIN_STEP, BIN_STEP_CONFIGS, CCU_LIMIT, CONFIG, DECAY_PERIOD, FILTER_PERIOD, FIXED_LENGTH, LiquidityBookServices, MAX_BASIS_POINTS, MAX_VOLATILITY_ACCUMULATOR, MODE, ONE, PRECISION, PROTOCOL_SHARE, REDUCTION_FACTOR, REWARDS_DURATION, REWARDS_PER_SECOND, SCALE_OFFSET, START_TIME, UNIT_PRICE_DEFAULT, VARIABLE_FEE_CONTROL, VARIABLE_FEE_PRECISION, WRAP_SOL_ADDRESS };
+export { ACTIVE_ID, BASE_FACTOR, BASIS_POINT_MAX, BIN_ARRAY_INDEX, BIN_ARRAY_SIZE, BIN_STEP, BIN_STEP_CONFIGS, CCU_LIMIT, CONFIG, DECAY_PERIOD, FILTER_PERIOD, FIXED_LENGTH, LiquidityBookServices, LiquidityShape, MAX_BASIS_POINTS, MAX_VOLATILITY_ACCUMULATOR, MODE, ONE, PRECISION, PROTOCOL_SHARE, REDUCTION_FACTOR, REWARDS_DURATION, REWARDS_PER_SECOND, RemoveLiquidityType, SCALE_OFFSET, START_TIME, UNIT_PRICE_DEFAULT, VARIABLE_FEE_CONTROL, VARIABLE_FEE_PRECISION, WRAP_SOL_ADDRESS, createUniformDistribution, findPosition, getBinRange, getGasPrice, getMaxBinArray, getMaxPosition };
 //# sourceMappingURL=dlmm-sdk.esm.js.map

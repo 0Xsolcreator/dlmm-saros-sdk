@@ -25,13 +25,21 @@ export type LiquidityBookConfig = {
   rewardsPerSecond: number;
 };
 
-export interface ILiquidityBookConfig {
-  mode: MODE;
-  options?: {
-    rpcUrl: string;
-    commitmentOrConfig?: Commitment | ConnectionConfig
-  }
-}
+export type ILiquidityBookConfig =
+  | {
+      mode: MODE;
+      options?: {
+        rpcUrl?: string;
+        commitmentOrConfig?: Commitment | ConnectionConfig;
+      };
+    }
+  | {
+      mode?: never;
+      options: {
+        rpcUrl: string;
+        commitmentOrConfig?: Commitment | ConnectionConfig;
+      };
+    };
 
 export type Bin = {
   reserveX: number;
