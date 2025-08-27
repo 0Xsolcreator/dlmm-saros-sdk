@@ -88,3 +88,17 @@ export interface PoolMetadata {
         tokenBaseDecimal: number;
     };
 }
+export interface PairAccount {
+    bump: number[];
+    liquidityBookConfig: PublicKey;
+    binStep: number;
+    binStepSeed: number[];
+    tokenMintX: PublicKey;
+    tokenMintY: PublicKey;
+    staticFeeParameters: StaticFeeParameters;
+    activeId: number;
+    dynamicFeeParameters: DynamicFeeParameters;
+    protocolFeesX: BN;
+    protocolFeesY: BN;
+    hook: PublicKey | null;
+}

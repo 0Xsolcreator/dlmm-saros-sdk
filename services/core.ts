@@ -5,7 +5,7 @@ import {
   Transaction,
   TransactionMessage,
 } from "@solana/web3.js";
-import { ILiquidityBookConfig, PoolMetadata } from "../types";
+import { ILiquidityBookConfig, PairAccount, PoolMetadata } from "../types";
 import {
   BIN_ARRAY_INDEX,
   BIN_ARRAY_SIZE,
@@ -48,6 +48,7 @@ import { mulDiv, mulShr, shlDiv } from "../utils/math";
 import LiquidityBookIDL from "../constants/idl/liquidity_book.json";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { getGasPrice } from "../utils";
+import { pairAccountToPair } from "../utils/typeConverters";
 
 export class LiquidityBookServices extends LiquidityBookAbstract {
   bufferGas?: number;
@@ -65,7 +66,7 @@ export class LiquidityBookServices extends LiquidityBookAbstract {
 
   public async getPairAccount(pair: PublicKey) {
     //@ts-ignore
-    return await this.lbProgram.account.pair.fetch(pair);
+    return await this.lbProgram.account.pair.fetch(pair) as PairAccount;
   }
 
   public async getPositionAccount(position: PublicKey) {
@@ -1123,7 +1124,8 @@ export class LiquidityBookServices extends LiquidityBookAbstract {
   ) {
     try {
       let amountIn = BigInt(amount);
-      const pair = await this.getPairAccount(pairAddress);
+      const pairAccount = await this.getPairAccount(pairAddress);
+      const pair = pairAccountToPair(pairAccount);
       const activeId = pair?.activeId;
       const binStep = pair?.binStep;
       const swapService = LBSwapService.fromLbConfig(

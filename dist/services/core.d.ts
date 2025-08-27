@@ -1,5 +1,5 @@
 import { PublicKey, Transaction } from "@solana/web3.js";
-import { ILiquidityBookConfig, PoolMetadata } from "../types";
+import { ILiquidityBookConfig, PairAccount, PoolMetadata } from "../types";
 import { LiquidityBookAbstract } from "../interface/liquidityBookAbstract";
 import { AddLiquidityIntoPositionParams, CreatePairWithConfigParams, CreatePositionParams, GetBinArrayParams, GetBinsArrayInfoParams, GetBinsReserveParams, GetBinsReserveResponse, GetTokenOutputParams, GetTokenOutputResponse, GetUserVaultInfoParams, RemoveMultipleLiquidityParams, RemoveMultipleLiquidityResponse, SwapParams, UserPositionsParams } from "../types/services";
 export declare class LiquidityBookServices extends LiquidityBookAbstract {
@@ -7,7 +7,7 @@ export declare class LiquidityBookServices extends LiquidityBookAbstract {
     constructor(config: ILiquidityBookConfig);
     get lbConfig(): PublicKey;
     get hooksConfig(): PublicKey;
-    getPairAccount(pair: PublicKey): Promise<any>;
+    getPairAccount(pair: PublicKey): Promise<PairAccount>;
     getPositionAccount(position: PublicKey): Promise<any>;
     getBinArray(params: GetBinArrayParams): Promise<PublicKey>;
     getBinArrayInfo(params: GetBinsArrayInfoParams): Promise<{

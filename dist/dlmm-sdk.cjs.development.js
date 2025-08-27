@@ -7517,6 +7517,38 @@ var getGasPrice = /*#__PURE__*/function () {
   };
 }();
 
+function pairAccountToPair(account) {
+  return {
+    bump: account.bump,
+    liquidityBookConfig: account.liquidityBookConfig.toBase58(),
+    binStep: account.binStep,
+    binStepSeed: account.binStepSeed,
+    tokenMintX: account.tokenMintX.toBase58(),
+    tokenMintY: account.tokenMintY.toBase58(),
+    staticFeeParameters: {
+      baseFactor: account.staticFeeParameters.baseFactor,
+      filterPeriod: account.staticFeeParameters.filterPeriod,
+      decayPeriod: account.staticFeeParameters.decayPeriod,
+      reductionFactor: account.staticFeeParameters.reductionFactor,
+      variableFeeControl: account.staticFeeParameters.variableFeeControl,
+      maxVolatilityAccumulator: account.staticFeeParameters.maxVolatilityAccumulator,
+      protocolShare: account.staticFeeParameters.protocolShare,
+      space: Array.from(account.staticFeeParameters.space).slice(0, 2)
+    },
+    activeId: account.activeId,
+    dynamicFeeParameters: {
+      timeLastUpdated: account.dynamicFeeParameters.timeLastUpdated,
+      volatilityAccumulator: account.dynamicFeeParameters.volatilityAccumulator,
+      volatilityReference: account.dynamicFeeParameters.volatilityReference,
+      idReference: account.dynamicFeeParameters.idReference,
+      space: Array.from(account.dynamicFeeParameters.space).slice(0, 4)
+    },
+    protocolFeesX: account.protocolFeesX.toString(),
+    protocolFeesY: account.protocolFeesY.toString(),
+    hook: account.hook ? account.hook.toBase58() : null
+  };
+}
+
 var LiquidityBookServices = /*#__PURE__*/function (_LiquidityBookAbstrac) {
   function LiquidityBookServices(config) {
     return _LiquidityBookAbstrac.call(this, config) || this;
@@ -8485,7 +8517,7 @@ var LiquidityBookServices = /*#__PURE__*/function (_LiquidityBookAbstrac) {
   }();
   _proto.getMaxAmountOutWithFee = /*#__PURE__*/function () {
     var _getMaxAmountOutWithFee = /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee12(pairAddress, amount, swapForY, decimalBase, decimalQuote) {
-      var amountIn, pair, activeId, binStep, swapService, feePrice, activePrice, price, feeAmount, maxAmountOut;
+      var amountIn, pairAccount, pair, activeId, binStep, swapService, feePrice, activePrice, price, feeAmount, maxAmountOut;
       return _regenerator().w(function (_context12) {
         while (1) switch (_context12.p = _context12.n) {
           case 0:
@@ -8503,7 +8535,8 @@ var LiquidityBookServices = /*#__PURE__*/function (_LiquidityBookAbstrac) {
             _context12.n = 2;
             return this.getPairAccount(pairAddress);
           case 2:
-            pair = _context12.v;
+            pairAccount = _context12.v;
+            pair = pairAccountToPair(pairAccount);
             activeId = pair == null ? void 0 : pair.activeId;
             binStep = pair == null ? void 0 : pair.binStep;
             swapService = LBSwapService.fromLbConfig(this.lbProgram, this.connection);
