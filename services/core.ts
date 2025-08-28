@@ -833,6 +833,10 @@ export class LiquidityBookServices extends LiquidityBookAbstract {
       payer,
     } = params;
 
+    if (amount <= 0 || otherAmountOffset <= 0) 
+      throw new Error("Amount must be greater than 0");
+    
+
     const pairInfo = await this.getPairAccount(pair);
     if (!pairInfo) throw new Error("Pair not found");
 
